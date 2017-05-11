@@ -39,8 +39,7 @@ int rootfs_create(container_opts const& opts) {
 			"Failed to create rootfs directory", return -1);
 	Defer(if (ret != 0) rootfs_destroy_at(rootfs_path));
 
-	string cmd("id && (cd '"s + escaped + "' && tar cf - .) | (cd "s + rootfs_path + " && tar xf -)"s);
-	print_log("command to execute: %s", cmd.c_str());
+	string cmd("(cd '"s + escaped + "' && tar cf - .) | (cd "s + rootfs_path + " && tar xf -)"s);
 	SYSTEM(ret, cmd,
 			"Failed to copy rootfs", (void) 0);
 	return ret;

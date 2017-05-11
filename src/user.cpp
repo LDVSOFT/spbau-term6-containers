@@ -14,20 +14,31 @@ using std::string;
 using std::to_string;
 using namespace std::literals;
 
-int user_setup_ns_monitor(container_opts const& opts) {
-	int fd, ret;
-	string map("0 "s + to_string(opts.owner) + " 1\n"s);
-	for (char c: {'u', 'g'}) {
-		string path("/proc/"s + to_string(opts.id.pid) + "/"s + c + "id_map"s);
-		CALL(fd, open(path.c_str(), O_WRONLY),
-			"Failed to open ?id_map", return -1);
-		Defer(CALL(ret, close(fd),
-					"Failed to close ?id_map", (void) 0));
+static int write_mapping(string const& path, int id) {
+	int ret, fd;
+	string map("0 "s + to_string(id) + " 1\n"s);
+	print_log("path: %s", path.c_str());
+	CALL(fd, open(path.c_str(), O_WRONLY),
+		"Failed to open ?id_map", return -1);
+	Defer(CALL(ret, close(fd),
+				"Failed to close ?id_map", (void) 0));
 
-		CALLv(ssize_t(map.size()), ret, write(fd, map.c_str(), map.size()),
+	CALLv(ssize_t(map.size()), ret, write(fd, map.c_str(), map.size()),
+		"Failed to write ?id_map", return -1);
+	return 0;
+}
+
+int user_setup_ns_monitor(container_opts const& opts) {
+	int ret;
+	string base_path("/proc/"s + to_string(opts.id.pid) + "/"s);
+
+	CALL_(ret, write_mapping(base_path + "uid_map"s, opts.uid),
 			"Failed to write uid_map", return -1);
-	}
-	return ret;
+
+	CALL_(ret, write_mapping(base_path + "gid_map"s, opts.gid),
+			"Failed to write gid_map", return -1);
+
+	return 0;
 }
 
 int user_setup_ns_child() {

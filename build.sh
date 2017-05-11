@@ -1,8 +1,8 @@
 #!/bin/bash
 
 set -e
-CFLAGS='-m64 -std=c++14 -Wall -Wextra -O2 -flto'
-LFLAGS='-lboost_program_options -lcap'
+CFLAGS='-m64 -std=gnu++14 -Wall -Wextra -O2 -flto'
+LFLAGS='-lboost_program_options'
 rm -rf obj/ bin/ || true
 mkdir obj/ bin/
 for f in src/*.cpp; do

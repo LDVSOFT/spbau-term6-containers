@@ -24,7 +24,7 @@
 #define CALLv_(value, var, call, message, on_error) _CALL(== value, var, call, message, on_error, 0)
 #define CALL(var, call, message, on_error)  _CALL(>= 0, var, call, message, on_error, 1)
 #define CALL_(var, call, message, on_error) _CALL(>= 0, var, call, message, on_error, 0)
-#define SYSTEM(var, s, message, on_error) CALLv(0, var, system((s).c_str()), message, var = -1; on_error)
+#define SYSTEM(var, s, message, on_error) CALLv(0, var, ({ print_log("SYSTEM: %s", (s).c_str()); system((s).c_str()) ; }), message, var = -1; on_error)
 
 //http://stackoverflow.com/a/38289141/4324545
 template <class Lambda> class AtScopeExit {

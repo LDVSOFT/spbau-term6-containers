@@ -95,11 +95,9 @@ static int at_monitor(container_opts const& opts, int fd, int parent_fd) {
 	void* err(NULL);
 
 	// 1. Setup control group
-	if (opts.cpu_limit != opts.CPU_NO_LIMIT) {
-		print_log("Setup cpu cgroup...");
-		CALL_(ret, cpu_setup_cgroup(opts),
-				"Failed to setup cpu cgroup", ret = ERR_ME; err = &&exit_none; goto exit);
-	}
+	print_log("Setup cpu cgroup...");
+	CALL_(ret, cpu_setup_cgroup(opts),
+			"Failed to setup cpu cgroup", ret = ERR_ME; err = &&exit_none; goto exit);
 
 	// 2. Setup user namespace
 	print_log("Setup user namespace (monitor)...");
@@ -182,11 +180,9 @@ exit_net:
 				"Failed to destroy net namespace", if (ret == ERR_SUCCESS) ret = ERR_OTHER);
 	}
 exit_cgroup:
-	if (opts.cpu_limit != opts.CPU_NO_LIMIT) {
-		print_log("Destroying cpu cgroup...");
-		CALL_(ret_, cpu_destroy(opts),
-				"Failed to destroy cpu cgroup", if (ret == ERR_SUCCESS) ret = ERR_OTHER);
-	}
+	print_log("Destroying cpu cgroup...");
+	CALL_(ret_, cpu_destroy(opts),
+			"Failed to destroy cpu cgroup", if (ret == ERR_SUCCESS) ret = ERR_OTHER);
 exit_none:
 	return ret;
 }
@@ -196,24 +192,28 @@ static int monitor(container_opts& opts, int parent_fd = -1) {
 
 	int ret, fd[2];
 	/* elevate to full-root; else system(3) is UB... */ {
-		uid_t r, e, s;
-		CALL(ret, getresuid(&r, &e, &s),
-				"Cannot check credentials", return -1);
+		uid_t uid, euid, suid;
+		gid_t gid, egid, sgid;
 
-		print_log("Validating credentials: %d %d %d", r, e, s);
-		if (e != 0) {
+		CALL(ret, getresuid(&uid, &euid, &suid),
+				"Cannot gain user credentials", return -1);
+		CALL(ret, getresgid(&gid, &egid, &sgid),
+				"Cannot gain group credentials", return -1);
+
+		if (euid != 0) {
+			print_log("ERROR: Have not got root credentials!");
 			return -1;
 		}
-		opts.owner = r;
+		opts.uid = uid;
+		opts.gid = gid;
 		CALL(ret, setreuid(0, 0),
-				"Failed to elevate credentials to full-root", return -1);
+				"Failed to elevate user credentials to full-root", return -1);
 		CALL(ret, setregid(0, 0),
-				"Failed to elevate credentials to full-root", return -1);
-
-		CALL(ret, tty_stat(opts),
-				"Failed to check for interactivity", return -1);
+				"Failed to elevate group credentials to full-root", return -1);
 	}
 
+	CALL(ret, tty_stat(opts),
+			"Failed to check for interactivity", return -1);
 	umask(0);
 
 	CALL(ret, socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, fd),
@@ -221,9 +221,7 @@ static int monitor(container_opts& opts, int parent_fd = -1) {
 
 	pid_t pid;
 	int flags(SIGCHLD | CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID
-			| CLONE_NEWUTS | CLONE_NEWIPC);
-	if (opts.net_ip != opts.NET_NO_IP)
-		flags |= CLONE_NEWNET;
+			| CLONE_NEWUTS | CLONE_NEWIPC | CLONE_NEWNET);
 	CALL(pid, clone(flags),
 			"Failed to fork child", return -1);
 

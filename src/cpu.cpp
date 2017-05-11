@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-static int const SCHEDULING_BASE(1e6);
+static int const SCHEDULING_BASE(1e4);
 
 using std::string;
 using std::to_string;
@@ -38,7 +38,7 @@ int cpu_setup_cgroup(container_opts const& opts) {
 		CALL(fd, open(filepath.c_str(), O_WRONLY),
 				"Failed to open cfs_quota_us", return ret = -1);
 		Defer(close(fd));
-		string msg(to_string(SCHEDULING_BASE * opts.cpu_limit / 100) + "\n"s);
+		string msg(to_string(sysconf(_SC_NPROCESSORS_ONLN) * SCHEDULING_BASE * opts.cpu_limit / 100) + "\n"s);
 		CALLv(ssize_t(msg.size()), ret, write(fd, msg.c_str(), msg.size()),
 				"Failed to write to cfs_quota_us", return ret = -1);
 	}

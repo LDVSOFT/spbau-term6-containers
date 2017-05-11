@@ -15,7 +15,8 @@ struct container_opts {
 
 	container_id id;
 	// User who owns the container
-	uid_t owner;
+	uid_t uid;
+	gid_t gid;
 	// Daemonize the contaier?
 	bool daemonize = false;
 	// If provided -- IP of the container

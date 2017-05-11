@@ -79,9 +79,10 @@ int container_kill_and_wait(container_id const& id, int signal) {
 		}
 		CALL(ret, pclose(fd),
 				"Failed to pclose", return -1);
-		if (WEXITSTATUS(ret) != 0) {
-			print_log("Grepping PPid failed");
-			return -1;
+		ret = WEXITSTATUS(ret);
+		if (ret == 1) {
+			print_log("Grepping PPid failed; container is already dead.");
+			return 0;
 		}
 		monitor = stoi(res);
 		print_log("Located monitor %d", monitor);

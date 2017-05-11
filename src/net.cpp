@@ -16,8 +16,10 @@ using std::to_string;
 using std::tie;
 using namespace std::literals;
 
+string const CONTAINER_VETH_NAME("eth0");
+
 static pair<string, string> get_veth_names(container_opts const& opts) {
-	return {"veth0-"s + opts.id.name(), "veth1-"s + opts.id.name()};
+	return {"v0-"s + opts.id.name(), "v1-"s + opts.id.name()};
 }
 
 int get_host_addr(string const& cont_addr, string& host_addr) {
@@ -37,19 +39,15 @@ int get_host_addr(string const& cont_addr, string& host_addr) {
 }
 
 static string get_masquerade_rule(string const& source, string const& veth) {
-	/*
-	(void) veth;
-	return "-s "s + source + " -j MASQUERADE";
-	*/
-	return "-s "s + source + " ! -o " + veth + " -j MASQUERADE";
+	return "-s "s + source + " ! -o "s + veth + " -j MASQUERADE"s;
 }
 
 static string get_forward_out_rule(string const& veth) {
-	return "-i "s + veth + " -j ACCEPT";
+	return "-i "s + veth + " -j ACCEPT"s;
 }
 
 static string get_forward_in_rule(string const& veth) {
-	return "-o "s + veth + " -j ACCEPT";
+	return "-o "s + veth + " -j ACCEPT"s;
 }
 
 int net_setup_ns(container_opts const& opts) {
@@ -69,7 +67,7 @@ int net_setup_ns(container_opts const& opts) {
 
 	int fd;
 	CALL(fd, open(ippath.c_str(), O_CREAT, S_IRWXU),
-			"Failed to create namespace mountpoint", return ret);
+			"Failed to create namespace mountpoint", return -1);
 	close(fd);
 	Defer(if (ret != 0) CALL(ret, unlink(ippath.c_str()),
 				"Failed to delete namespace mountpount", (void) 0));
@@ -79,6 +77,8 @@ int net_setup_ns(container_opts const& opts) {
 	Defer(if (ret != 0) CALL(ret, umount(ippath.c_str()),
 				"Failed to umount net namespace", (void) 0));
 
+	string ns_prefix("ip netns exec "s + ipname + " "s);
+
 	SYSTEM(ret, "ip link add "s + veth0 + " type veth peer name "s + veth1,
 			"Failed to create veth pair", return ret);
 	Defer(if (ret != 0) SYSTEM(ret, "ip link delete "s + veth0,
@@ -87,6 +87,10 @@ int net_setup_ns(container_opts const& opts) {
 	SYSTEM(ret, "ip link set "s + veth1 + " netns "s + ipname,
 			"Failed to move veth1 to net namespace", return ret);
 
+	SYSTEM(ret, ns_prefix + "ip link set "s + veth1 + " name "s + CONTAINER_VETH_NAME,
+			"Failed to rename veth1", return ret);
+	veth1 = CONTAINER_VETH_NAME;
+
 	SYSTEM(ret, "ip link set "s + veth0 + " up"s,
 			"Failed to activate veth0", return ret);
 
@@ -94,13 +98,19 @@ int net_setup_ns(container_opts const& opts) {
 			"Failed to set host IP", return ret);
 
 	// Debian why so old, where is -netns?
-	SYSTEM(ret, "ip netns exec "s + ipname + " ip link set "s + veth1 + " up"s,
+	SYSTEM(ret, ns_prefix + "ip link set lo up",
+			"Failed to activate loopback", return ret);
+
+	SYSTEM(ret, ns_prefix + "ip link set "s + veth1 + " alias "s + CONTAINER_VETH_NAME,
+			"Failed to set alias", return ret);
+
+	SYSTEM(ret, ns_prefix + "ip link set "s + veth1 + " up"s,
 			"Failed to activate veth1", return ret);
 
-	SYSTEM(ret, "ip netns exec "s + ipname + " ip addr add "s + addr_cont + " dev "s + veth1,
+	SYSTEM(ret, ns_prefix + "ip addr add "s + addr_cont + " dev "s + veth1,
 			"Failed to set container IP", return ret);
 
-	SYSTEM(ret, "ip netns exec "s + ipname + " ip route add default via "s + ip_host,
+	SYSTEM(ret, ns_prefix + "ip route add default via "s + ip_host,
 			"Failed to set default route", return ret);
 
 	SYSTEM(ret, "iptables -t nat -A POSTROUTING "s + get_masquerade_rule(ip_cont, veth0),
