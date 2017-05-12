@@ -121,13 +121,14 @@ static int at_monitor(container_opts const& opts, int fd, int parent_fd) {
 	CALL_(ret, tty_setup_job(opts),
 			"Failed to setup job", ret = ERR_ME; err = &&exit_rootfs; goto exit);
 
-	// 6-10. ...
+	// 6-9. ...
 	write_int(fd, ERR_SUCCESS);
 	ret = read_int(fd);
 	if (ret != ERR_SUCCESS) {
 		print_log("Child failed before exec");
 		ret = ERR_OTHER;
 	} else {
+		// 10. ...
 		ret = read_int(fd);
 		if (ret == ERR_EOF) {
 			print_log("Child successfully exec-ed");

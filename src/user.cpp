@@ -15,15 +15,8 @@ using std::to_string;
 using namespace std::literals;
 
 static int write_mapping(string const& path, int id) {
-	int ret, fd;
-	string map("0 "s + to_string(id) + " 1\n"s);
-	print_log("path: %s", path.c_str());
-	CALL(fd, open(path.c_str(), O_WRONLY),
-		"Failed to open ?id_map", return -1);
-	Defer(CALL(ret, close(fd),
-				"Failed to close ?id_map", (void) 0));
-
-	CALLv(ssize_t(map.size()), ret, write(fd, map.c_str(), map.size()),
+	int ret;
+	CALL_(ret, write_line_to_file(path, "0 "s + to_string(id) + " 1"s),
 		"Failed to write ?id_map", return -1);
 	return 0;
 }

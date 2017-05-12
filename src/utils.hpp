@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
+#include <string>
 
 #define STRINGIFY(x) #x
 #define _CALL(cond, var, call, message, on_error, do_errno) \
@@ -45,3 +46,5 @@ public:
 	Auto_TOKENPASTE(instance_, ctr), __VA_ARGS__)
 
 #define Defer(...) Auto_INTERNAL1(__COUNTER__, __VA_ARGS__)
+
+int write_line_to_file(std::string const& path, std::string const& contents);

@@ -125,4 +125,3 @@ int container_kill_and_wait(container_id const& id, int signal) {
 
 	return 0;
 }
-

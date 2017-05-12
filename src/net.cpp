@@ -160,7 +160,7 @@ int net_destroy(container_opts const& opts) {
 			"Failed to umount net namespace", return ret);
 
 	CALL(ret, unlink(ippath.c_str()),
-				"Failed to delete namespace mountpount", return ret);
+			"Failed to delete namespace mountpount", return ret);
 
 	return 0;
 }
